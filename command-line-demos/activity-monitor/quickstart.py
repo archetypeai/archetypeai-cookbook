@@ -32,6 +32,8 @@ DEFAULT_LENS_ID = "lns-fd669361822b07e2-bc718aa3fdf0b3b7"
 DEFAULT_INSTRUCTION = "Answer the following question about the video in less than 15 words:"
 DEFAULT_MAX_RUN_SEC = 600.0
 DEFAULT_MAX_NEW_TOKENS = 256
+DEFAULT_STEP_SIZE = 60
+DEFAULT_WINDOW_SIZE = 60
 
 # ---------- Interactive inputs ----------
 def get_user_inputs() -> dict:
@@ -76,8 +78,8 @@ def get_user_inputs() -> dict:
         "max_new_tokens": DEFAULT_MAX_NEW_TOKENS,
         "lens_id": DEFAULT_LENS_ID,
         "video_file_id": None,
-        "step_size": 60,
-        "window_size": 1,
+        "step_size": DEFAULT_STEP_SIZE,
+        "window_size": DEFAULT_WINDOW_SIZE,
     }
 
 # ---------- Event builders ----------
