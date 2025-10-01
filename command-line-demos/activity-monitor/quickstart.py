@@ -20,8 +20,8 @@ BANNER = r"""
 ██║ ╚████║███████╗╚███╔███╔╝   ██║   ╚██████╔╝██║ ╚████║    ██║  ██║██╗
 ╚═╝  ╚═══╝╚══════╝ ╚══╝╚══╝    ╚═╝    ╚═════╝ ╚═╝  ╚═══╝    ╚═╝  ╚═╝╚═╝
 """
-def c(text, r=164, g=186, b=250):
-    return f"\033[38;2;{r};{g};{b}m{text}\033[0m"
+def colorize_text(text: str, red: int = 164, green: int = 186, blue: int = 250) -> str:
+    return f"\033[38;2;{red};{green};{blue}m{text}\033[0m"
 
 # ---------- Setup ----------
 DEFAULT_LENS_ID = "lns-fd669361822b07e2-bc718aa3fdf0b3b7"
@@ -33,10 +33,10 @@ DEFAULT_WINDOW_SIZE = 60
 
 # ---------- Interactive inputs ----------
 def get_user_inputs() -> dict:
-    print(c(BANNER))
+    print(colorize_text(BANNER))
     print("\n=== Activity Monitor ===\n")
 
-    api_key = os.getenv("ARCHETYPE_API_KEY", "").strip() or input("Enter your ArchetypeAI API key: ").strip()
+    api_key = os.getenv("ATAI_API_KEY", "").strip() or input("Enter your ArchetypeAI API key: ").strip()
     if not api_key:
         print("Error: API key is required."); sys.exit(1)
 
@@ -156,11 +156,11 @@ def session_fn(session_id: str, session_endpoint: str, client: ArchetypeAI, args
     signal.signal(signal.SIGINT, _sigint)
 
     try:
-        for ev in sse_reader.read(block=True):
+        for event in sse_reader.read(block=True):
             if stop["flag"]:
                 break
-            if isinstance(ev, dict) and ev.get("type") == "inference.result":
-                ed = ev.get("event_data", {})
+            if isinstance(event, dict) and event.get("type") == "inference.result":
+                ed = event.get("event_data", {})
                 resp = ed.get("response") or []
                 ts = ed.get("query_metadata", {}).get("sensor_timestamp", "N/A")
                 if resp and isinstance(resp, list):
