@@ -154,7 +154,7 @@ def build_output_event() -> dict:
 def get_user_inputs() -> dict:
     print("\n=== Machine State → Google Sheets ===\n")
 
-    api_key = os.getenv("ARCHETYPE_API_KEY", "").strip() or input("Enter your ArchetypeAI API key: ").strip()
+    api_key = os.getenv("ATAI_API_KEY", "").strip() or input("Enter your ArchetypeAI API key: ").strip()
     if not api_key:
         print("Error: API key is required."); sys.exit(1)
 
@@ -184,10 +184,11 @@ def get_user_inputs() -> dict:
         focus_files[cls] = p
         print(f" Added: class '{cls}' from {Path(p).name}")
 
-    ws = input(f"\nWindow size [default {DEFAULT_WINDOW_SIZE}]: ").strip()
-    ss = input(f"Step size   [default {DEFAULT_STEP_SIZE}]: ").strip()
-    window_size = int(ws) if ws.isdigit() else DEFAULT_WINDOW_SIZE
-    step_size = int(ss) if ss.isdigit() else DEFAULT_STEP_SIZE
+    window_size_input = input(f"\nWindow size [default {DEFAULT_WINDOW_SIZE}]: ").strip()
+    step_size_input = input(f"Step size   [default {DEFAULT_STEP_SIZE}]: ").strip()
+
+    window_size = int(window_size_input) if window_size_input.isdigit() else DEFAULT_WINDOW_SIZE
+    step_size = int(step_size_input) if step_size_input.isdigit() else DEFAULT_STEP_SIZE
 
     return {
         "api_key": api_key,
@@ -211,16 +212,17 @@ def session_fn(session_id: str, session_endpoint: str, client: ArchetypeAI, args
 
     # Upload focus CSVs
     input_n_shot = {}
-    for cls, p in args["focus_files"].items():
-        r = client.files.local.upload(p)
-        input_n_shot[cls] = r["file_id"]
-        logging.info(f"Uploaded focus '{cls}' -> {r['file_id']}")
+    for class_name, file_path in args["focus_files"].items():
+        upload_response = client.files.local.upload(file_path)
+        input_n_shot[class_name] = upload_response["file_id"]
+        logging.info(f"Uploaded focus '{class_name}' -> {upload_response['file_id']}")
 
     # Upload data CSV
-    data_resp = client.files.local.upload(args["data_file_path"])
-    data_file_id = data_resp["file_id"]
+    data_upload_response = client.files.local.upload(args["data_file_path"])
+    data_file_id = data_upload_response["file_id"]
     data_file_name = Path(args["data_file_path"]).name
-    logging.info(f"Uploaded data CSV -> {data_file_id}")
+
+    logging.info(f"Uploaded data file '{data_file_name}' -> {data_file_id}")
 
     # Configure lens & streams
     client.lens.sessions.process_event(session_id,

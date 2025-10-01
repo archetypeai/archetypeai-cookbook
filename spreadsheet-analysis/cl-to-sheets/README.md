@@ -4,7 +4,7 @@ Analyze CSV time-series data and log predictions directly to Google Sheets.
 
 ## Requirements
 
-- Python 3.9+
+- Python 12
 - [ArchetypeAI Python client](https://github.com/archetypeai/python-client)
 - Google Sheets API credentials
 
