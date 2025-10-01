@@ -4,7 +4,7 @@ Control Newton's Activity Monitor via Telegram commands. Detects alerts in video
 
 ## Requirements
 
-- Python 3.9+
+- Python 12
 - [ArchetypeAI Python client](https://github.com/archetypeai/python-client)
 - python-telegram-bot library
 
