@@ -149,7 +149,7 @@ def main():
         if not rtsp_url:
             print("RTSP URL is required for rtsp input."); return
     else:
-        video_file_id = input("Enter video file ID (already uploaded under your API key): ").strip()
+        video_file_id = input("Enter video file ID (already uploaded under your API key - including .mp4): ").strip()
         if not video_file_id:
             print("Video file ID is required for video input."); return
 
