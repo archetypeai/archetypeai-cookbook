@@ -181,8 +181,8 @@ class SpreadsheetLensRunner:
 
     def append_result(self, window_num: int, predicted_result) -> None:
         ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        pred, conf, scores = self.parse_prediction_result(predicted_result)
-        row = [[ts, f"Window {window_num}", pred, conf, scores]]
+        predicted_label, confidence_pct, scores_str = self.parse_prediction_result(predicted_result)
+        row = [[ts, f"Window {window_num}", predicted_label, confidence_pct, scores_str]]
         try:
             self.service.spreadsheets().values().append(
                 spreadsheetId=self.spreadsheet_id, range=RESULTS_RANGE,
@@ -223,12 +223,12 @@ class SpreadsheetLensRunner:
         try:
             meta = self.service.spreadsheets().get(spreadsheetId=self.spreadsheet_id).execute()
             excluded = {"config", "data", "results", "sheet1"}
-            out = []
-            for s in meta.get("sheets", []):
-                title = s["properties"]["title"]
+            focus_titles = []
+            for sheet in meta.get("sheets", []):
+                title = sheet["properties"]["title"]
                 if title.lower() not in excluded:
-                    out.append(title)
-            return out
+                    focus_titles.append(title)
+            return focus_titles
         except Exception as e:
             logging.error(f"Error listing focus sheets: {e}")
             return []
@@ -264,10 +264,10 @@ def run_once(runner: SpreadsheetLensRunner):
         for tab in focus_tabs:
             rows = runner.read_sheet(tab)
             if rows:
-                p = runner.to_temp_csv(rows)
-                if p:
-                    focus_files[tab.lower()] = p
-                    temp_paths.append(p)
+                temp_path = runner.to_temp_csv(rows)
+                if temp_path:
+                    focus_files[tab.lower()] = temp_path
+                    temp_paths.append(temp_path)
 
         if not focus_files:
             runner.set_status("ERROR", "No valid focus CSVs")
@@ -282,14 +282,15 @@ def run_once(runner: SpreadsheetLensRunner):
         def session_fn(session_id: str, session_endpoint: str, client: ArchetypeAI, args: dict):
             # Upload focus CSVs
             input_n_shot = {}
-            for cls, path in focus_files.items():
-                r = client.files.local.upload(path)
-                input_n_shot[cls] = r["file_id"]
-                logging.info(f"Uploaded focus '{cls}' -> {r['file_id']}")
+            input_n_shot = {}
+            for class_name, file_path in focus_files.items():
+                upload_response = client.files.local.upload(file_path)
+                input_n_shot[class_name] = upload_response["file_id"]
+                logging.info(f"Uploaded focus '{class_name}' -> {upload_response['file_id']}")
 
             # Upload data CSV
-            r = client.files.local.upload(data_csv)
-            data_file_id = r["file_id"]
+            data_upload_response = client.files.local.upload(data_csv)
+            data_file_id = data_upload_response["file_id"]
 
             # Configure lens & streams
             client.lens.sessions.process_event(session_id, build_session_modify_event(input_n_shot, cfg))
@@ -299,13 +300,13 @@ def run_once(runner: SpreadsheetLensRunner):
             # SSE reader
             sse = client.lens.sessions.create_sse_consumer(session_id, max_read_time_sec=int(cfg.get("max_run_time_sec", 600)))
             window_count = 0
-            for ev in sse_reader_iter(sse):
-                if isinstance(ev, dict) and ev.get("type") == "inference.result":
-                    result = ev.get("event_data", {}).get("response")
+            for event in sse_reader_iter(sse):
+                if isinstance(event, dict) and event.get("type") == "inference.result":
+                    result = event.get("event_data", {}).get("response")
                     if result is not None:
                         window_count += 1
-                        pred, conf, _ = runner.parse_prediction_result(result)
-                        logging.info(f"Window {window_count}: {pred} ({conf})")
+                        predicted_label, confidence_pct, _ = runner.parse_prediction_result(result)
+                        logging.info(f"Window {window_count}: {predicted_label} ({confidence_pct})")
                         runner.append_result(window_count, result)
                         if window_count % 10 == 0:
                             runner.set_status("RUNNING", f"Processed {window_count} windows")
@@ -320,9 +321,9 @@ def run_once(runner: SpreadsheetLensRunner):
         runner.set_status("ERROR", str(e))
     finally:
         # Cleanup temps
-        for p in temp_paths:
+        for path_to_delete in temp_paths:
             try:
-                os.unlink(p)
+                os.unlink(path_to_delete)
             except Exception:
                 pass
 

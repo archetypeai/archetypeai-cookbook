@@ -4,7 +4,7 @@ Fully automated Google Sheets integration that reads config, data, and focus exa
 
 ## Requirements
 
-- Python 3.9+
+- Python 3.12
 - [ArchetypeAI Python client](https://github.com/archetypeai/python-client)
 - Google Sheets API credentials
 
