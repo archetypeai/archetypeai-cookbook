@@ -4,7 +4,7 @@ Interactive CSV time-series classification using one-shot learning.
 
 ## Requirements
 
-- Python 3.9+
+- Python 3.12
 - [ArchetypeAI Python client](https://github.com/archetypeai/python-client)
 
 You can install the ArchetypeAI client by following the instructions in the repository linked above.
