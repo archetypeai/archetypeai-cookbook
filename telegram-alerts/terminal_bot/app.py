@@ -113,12 +113,12 @@ def session_fn(session_id, session_endpoint, client: ArchetypeAI, args: dict) ->
 
     # --- SSE Reader
     sse_reader = client.lens.sessions.create_sse_consumer(session_id, max_read_time_sec=args["max_run_time_sec"])
-    for ev in sse_reader.read(block=True):
-        logging.info(ev)
+    for event in sse_reader.read(block=True):
+        logging.info(event)
 
         # --- Alert detection
-        if isinstance(ev, dict) and ev.get("type") == "inference.result":
-            resp_list = ev.get("event_data", {}).get("response", [])
+        if isinstance(event, dict) and event.get("type") == "inference.result":
+            resp_list = event.get("event_data", {}).get("response", [])
             if resp_list:
                 text = resp_list[0]
                 is_alert = "alert:" in text.lower()
@@ -135,7 +135,7 @@ def session_fn(session_id, session_endpoint, client: ArchetypeAI, args: dict) ->
 # ---------- Main ----------
 def main():
     print("=== Smart Monitor Setup ===")
-    api_key = os.getenv("ARCHETYPE_API_KEY", "").strip() or input("Enter your API Key: ").strip()
+    api_key = os.getenv("ATAI_API_KEY", "").strip() or input("Enter your API Key: ").strip()
     if not api_key:
         print("API key is required."); return
 

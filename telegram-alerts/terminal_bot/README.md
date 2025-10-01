@@ -4,7 +4,7 @@ Interactive terminal app that monitors video streams and sends Telegram alerts w
 
 ## Requirements
 
-- Python 3.9+
+- Python 12
 - [ArchetypeAI Python client](https://github.com/archetypeai/python-client)
 
 Install dependencies:
