@@ -23,7 +23,8 @@ BANNER = r"""
 ██║ ╚████║███████╗╚███╔███╔╝   ██║   ╚██████╔╝██║ ╚████║    ██║  ██║██╗
 ╚═╝  ╚═══╝╚══════╝ ╚══╝╚══╝    ╚═╝    ╚═════╝ ╚═╝  ╚═══╝    ╚═╝  ╚═╝╚═╝
 """
-def c(text, r=164, g=186, b=250): return f"\033[38;2;{r};{g};{b}m{text}\033[0m"
+def colorize_text(text: str, red: int = 164, green: int = 186, blue: int = 250) -> str:
+    return f"\033[38;2;{red};{green};{blue}m{text}\033[0m"
 
 # ---------- Defaults ----------
 DEFAULT_LENS_ID = "lns-1d519091822706e2-bc108andqxf8b4os"
@@ -70,10 +71,10 @@ def build_output_event() -> dict:
 
 # ---------- Interactive inputs ----------
 def get_user_inputs() -> dict:
-    print(c(BANNER))
+    print(colorize_text(BANNER))
     print("\n=== Machine State Lens ===\n")
 
-    api_key = os.getenv("ARCHETYPE_API_KEY", "").strip() or input("Enter your API key: ").strip()
+    api_key = os.getenv("ATAI_API_KEY", "").strip() or input("Enter your API key: ").strip()
     if not api_key:
         print("Error: API key is required."); sys.exit(1)
 
