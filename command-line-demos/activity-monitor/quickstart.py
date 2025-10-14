@@ -30,6 +30,7 @@ DEFAULT_MAX_RUN_SEC = 600.0
 DEFAULT_MAX_NEW_TOKENS = 256
 DEFAULT_STEP_SIZE = 60
 DEFAULT_WINDOW_SIZE = 60
+DEFAULT_API_ENDPOINT = os.getenv("ATAI_API_ENDPOINT") or ArchetypeAI.get_default_endpoint()
 
 # ---------- Interactive inputs ----------
 def get_user_inputs() -> dict:
@@ -76,6 +77,7 @@ def get_user_inputs() -> dict:
         "video_file_id": None,          # filled later if video
         "step_size": DEFAULT_STEP_SIZE,
         "window_size": DEFAULT_WINDOW_SIZE,
+        "api_endpoint": DEFAULT_API_ENDPOINT,
     }
 
 # ---------- Event builders ----------
@@ -172,9 +174,10 @@ def session_fn(session_id: str, session_endpoint: str, client: ArchetypeAI, args
 # ---------- Main ----------
 def main():
     args = get_user_inputs()
-    client = ArchetypeAI(args["api_key"], api_endpoint=ArchetypeAI.get_default_endpoint())
+    client = ArchetypeAI(args["api_key"], api_endpoint=args["api_endpoint"])
 
     print("\n--- Configuration Summary ---")
+    print(f"API Endpoint: {args['api_endpoint']} ")
     print(f"Input:  {args['input_type'].upper()}")
     if args['input_type'] == 'rtsp':
         print(f"RTSP:   {args['rtsp_url']}")

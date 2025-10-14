@@ -28,7 +28,7 @@ def colorize_text(text: str, red: int = 164, green: int = 186, blue: int = 250) 
 
 # ---------- Defaults ----------
 DEFAULT_LENS_ID = "lns-1d519091822706e2-bc108andqxf8b4os"
-DEFAULT_API_ENDPOINT = "https://api.archetypeai.dev/v0.5"
+DEFAULT_API_ENDPOINT = os.getenv("ATAI_API_ENDPOINT") or ArchetypeAI.get_default_endpoint()
 DEFAULT_MAX_RUN_SEC = 600.0
 DEFAULT_WINDOW_SIZE = 1024
 DEFAULT_STEP_SIZE = 1024  # no overlap
@@ -171,7 +171,7 @@ def main():
 
     print("\n--- Configuration Summary ---")
     print(f"Lens ID:      {args['lens_id']}")
-    print(f"API Endpoint: {args['api_endpoint']}")
+    print(f"API Endpoint: {args["api_endpoint"]}")
     print(f"Data file:    {args['data_file_path']}")
     print(f"Classes:      {len(args['focus_files'])}")
     for cls, p in args["focus_files"].items():

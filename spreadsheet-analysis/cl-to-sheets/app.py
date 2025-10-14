@@ -32,7 +32,7 @@ print(BANNER)
 
 # ---------- Defaults ----------
 DEFAULT_LENS_ID = "lns-1d519091822706e2-bc108andqxf8b4os"
-DEFAULT_API_ENDPOINT = "https://api.archetypeai.dev/v0.5"
+DEFAULT_API_ENDPOINT = os.getenv("ATAI_API_ENDPOINT") or ArchetypeAI.get_default_endpoint()
 DEFAULT_MAX_RUN_SEC = 600.0
 DEFAULT_WINDOW_SIZE = 1024
 DEFAULT_STEP_SIZE = 1024  # no overlap

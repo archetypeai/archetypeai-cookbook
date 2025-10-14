@@ -27,7 +27,6 @@ print(BANNER)
 
 # ---------- Lens Config ----------
 LENS_ID = "lns-fd669361822b07e2-bc718aa3fdf0b3b7"
-
 DEFAULT_INSTRUCTION = (
     "STOP. FOLLOW THIS EXACT FORMAT: Step 1: Write <scan> I see in this video: "
     "then list ALL detected objects, vehicles, people, animals, buildings, and their "
@@ -39,6 +38,7 @@ DEFAULT_INSTRUCTION = (
     "Alert: short description of what was detected, max 15 words ONLY return one of the above. "
     "Do not describe anything else."
 )
+DEFAULT_API_ENDPOINT = os.getenv("ATAI_API_ENDPOINT") or ArchetypeAI.get_default_endpoint()
 
 # ---------- Telegram Config ----------
 BOT_TOKEN = "YOUR_BOT_TOCKEN"
@@ -163,9 +163,10 @@ def main():
         "focus": focus,
         "instruction": DEFAULT_INSTRUCTION,
         "max_run_time_sec": 600.0,
+        "api_endpoint": DEFAULT_API_ENDPOINT
     }
 
-    client = ArchetypeAI(api_key, api_endpoint=ArchetypeAI.get_default_endpoint())
+    client = ArchetypeAI(args["api_key"], api_endpoint=args["api_endpoint"])
     logging.info("▶️ Starting monitoring session…")
     send_telegram_alert("▶️ Smart monitoring started…")
 
