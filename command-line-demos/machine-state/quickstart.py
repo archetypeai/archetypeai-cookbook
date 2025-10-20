@@ -28,7 +28,6 @@ def colorize_text(text: str, red: int = 164, green: int = 186, blue: int = 250) 
 
 # ---------- Defaults ----------
 DEFAULT_LENS_ID = "lns-1d519091822706e2-bc108andqxf8b4os"
-DEFAULT_API_ENDPOINT = os.getenv("ATAI_API_ENDPOINT") or ArchetypeAI.get_default_endpoint()
 DEFAULT_MAX_RUN_SEC = 600.0
 DEFAULT_WINDOW_SIZE = 1024
 DEFAULT_STEP_SIZE = 1024  # no overlap
@@ -75,6 +74,7 @@ def get_user_inputs() -> dict:
     print("\n=== Machine State Lens ===\n")
 
     api_key = os.getenv("ATAI_API_KEY", "").strip() or input("Enter your API key: ").strip()
+    api_endpoint = os.getenv("ATAI_API_ENDPOINT", "").strip() or input("Enter your API Endpoint: ").strip()
     if not api_key:
         print("Error: API key is required."); sys.exit(1)
 
@@ -116,7 +116,7 @@ def get_user_inputs() -> dict:
         "window_size": window_size,
         "step_size": step_size,
         "lens_id": DEFAULT_LENS_ID,
-        "api_endpoint": DEFAULT_API_ENDPOINT,
+        "api_endpoint": api_endpoint,
         "max_run_time_sec": DEFAULT_MAX_RUN_SEC,
     }
 

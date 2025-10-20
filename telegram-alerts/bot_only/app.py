@@ -43,7 +43,6 @@ DEFAULT_INSTRUCTION = (
     "Alert: short description of what was detected, max 15 words ONLY return one of the above. "
     "Do not describe anything else."
 )
-DEFAULT_API_ENDPOINT = os.getenv("ATAI_API_ENDPOINT") or ArchetypeAI.get_default_endpoint()
 
 # ---------- Telegram Config ----------
 BOT_TOKEN = "YOUR_BOT_TOCKEN"
@@ -146,7 +145,7 @@ def session_fn(session_id, session_endpoint, client, args):
     sse_reader.close()
 
 # ---------- Monitoring Control ----------
-def start_monitoring(api_key, input_type, rtsp_url, video_file_id, focus):
+def start_monitoring(api_key, api_endpoint, input_type, rtsp_url, video_file_id, focus):
     """Start a new monitoring session."""
     global stop_flag, current_client, current_session_id, last_args
     stop_flag = False
@@ -159,7 +158,7 @@ def start_monitoring(api_key, input_type, rtsp_url, video_file_id, focus):
         "focus": focus,
         "instruction": DEFAULT_INSTRUCTION,
         "max_run_time_sec": 600.0,
-        "api_endpoint": DEFAULT_API_ENDPOINT
+        "api_endpoint": api_endpoint
     }
     last_args = args.copy()
 
@@ -202,7 +201,7 @@ def restart_with_new_focus(new_focus):
 
     monitoring_thread = threading.Thread(
         target=start_monitoring,
-        args=(last_args["api_key"], last_args["input_type"], last_args["rtsp_url"], last_args["video_file_id"], last_args["focus"]),
+        args=(last_args["api_key"], last_args["api_endpoint"], last_args["input_type"], last_args["rtsp_url"], last_args["video_file_id"], last_args["focus"]),
         daemon=True
     )
     monitoring_thread.start()
@@ -211,7 +210,7 @@ def restart_with_new_focus(new_focus):
 async def start_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
         "Commands:\n"
-        "/start_monitoring <api_key> <rtsp|video> <url_or_id> <focus>\n"
+        "/start_monitoring <api_key> <api_endpoint> <rtsp|video> <url_or_id> <focus>\n"
         "/stop_monitoring\n"
         "/change_focus <new focus>\n"
         "/status"
@@ -223,17 +222,17 @@ async def start_monitoring_cmd(update: Update, context: ContextTypes.DEFAULT_TYP
         await update.message.reply_text("⚠️ Already running. Use /stop_monitoring first.")
         return
 
-    if len(context.args) < 4:
-        await update.message.reply_text("Usage: /start_monitoring <api_key> <rtsp|video> <url_or_id> <focus>")
+    if len(context.args) < 5:
+        await update.message.reply_text("Usage: /start_monitoring <api_key> <api_endpoint> <rtsp|video> <url_or_id> <focus>")
         return
 
-    api_key, input_type, url_or_id, *focus_words = context.args
+    api_key, api_endpoint, input_type, url_or_id, *focus_words = context.args
     focus = " ".join(focus_words)
     rtsp_url, video_file_id = (url_or_id, None) if input_type == "rtsp" else (None, url_or_id)
 
     monitoring_thread = threading.Thread(
         target=start_monitoring,
-        args=(api_key, input_type, rtsp_url, video_file_id, focus),
+        args=(api_key, api_endpoint, input_type, rtsp_url, video_file_id, focus),
         daemon=True
     )
     monitoring_thread.start()

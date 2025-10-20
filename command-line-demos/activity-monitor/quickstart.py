@@ -30,7 +30,6 @@ DEFAULT_MAX_RUN_SEC = 600.0
 DEFAULT_MAX_NEW_TOKENS = 256
 DEFAULT_STEP_SIZE = 60
 DEFAULT_WINDOW_SIZE = 60
-DEFAULT_API_ENDPOINT = os.getenv("ATAI_API_ENDPOINT") or ArchetypeAI.get_default_endpoint()
 
 # ---------- Interactive inputs ----------
 def get_user_inputs() -> dict:
@@ -38,6 +37,7 @@ def get_user_inputs() -> dict:
     print("\n=== Activity Monitor ===\n")
 
     api_key = os.getenv("ATAI_API_KEY", "").strip() or input("Enter your ArchetypeAI API key: ").strip()
+    api_endpoint = os.getenv("ATAI_API_ENDPOINT", "").strip() or input("Enter your API Endpoint: ").strip()
     if not api_key:
         print("Error: API key is required."); sys.exit(1)
 
@@ -77,7 +77,7 @@ def get_user_inputs() -> dict:
         "video_file_id": None,          # filled later if video
         "step_size": DEFAULT_STEP_SIZE,
         "window_size": DEFAULT_WINDOW_SIZE,
-        "api_endpoint": DEFAULT_API_ENDPOINT,
+        "api_endpoint": api_endpoint,
     }
 
 # ---------- Event builders ----------

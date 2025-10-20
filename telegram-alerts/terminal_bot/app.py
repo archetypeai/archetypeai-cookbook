@@ -38,7 +38,6 @@ DEFAULT_INSTRUCTION = (
     "Alert: short description of what was detected, max 15 words ONLY return one of the above. "
     "Do not describe anything else."
 )
-DEFAULT_API_ENDPOINT = os.getenv("ATAI_API_ENDPOINT") or ArchetypeAI.get_default_endpoint()
 
 # ---------- Telegram Config ----------
 BOT_TOKEN = "YOUR_BOT_TOCKEN"
@@ -136,6 +135,7 @@ def session_fn(session_id, session_endpoint, client: ArchetypeAI, args: dict) ->
 def main():
     print("=== Smart Monitor Setup ===")
     api_key = os.getenv("ATAI_API_KEY", "").strip() or input("Enter your API Key: ").strip()
+    api_endpoint = os.getenv("ATAI_API_ENDPOINT", "").strip() or input("Enter your API Endpoint: ").strip()
     if not api_key:
         print("API key is required."); return
 
@@ -163,7 +163,7 @@ def main():
         "focus": focus,
         "instruction": DEFAULT_INSTRUCTION,
         "max_run_time_sec": 600.0,
-        "api_endpoint": DEFAULT_API_ENDPOINT
+        "api_endpoint": api_endpoint
     }
 
     client = ArchetypeAI(args["api_key"], api_endpoint=args["api_endpoint"])
