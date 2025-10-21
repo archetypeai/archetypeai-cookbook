@@ -37,7 +37,7 @@ def get_user_inputs() -> dict:
     print("\n=== Activity Monitor ===\n")
 
     api_key = os.getenv("ATAI_API_KEY", "").strip() or input("Enter your ArchetypeAI API key: ").strip()
-    api_endpoint = os.getenv("ATAI_API_ENDPOINT", "").strip() or input("Enter your API Endpoint: ").strip()
+    api_endpoint = os.getenv("ATAI_API_ENDPOINT", "").strip() or input("Enter your API Endpoint (Press Enter for default): ").strip() or ArchetypeAI.get_default_endpoint()
     if not api_key:
         print("Error: API key is required."); sys.exit(1)
 

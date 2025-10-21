@@ -135,7 +135,7 @@ def session_fn(session_id, session_endpoint, client: ArchetypeAI, args: dict) ->
 def main():
     print("=== Smart Monitor Setup ===")
     api_key = os.getenv("ATAI_API_KEY", "").strip() or input("Enter your API Key: ").strip()
-    api_endpoint = os.getenv("ATAI_API_ENDPOINT", "").strip() or input("Enter your API Endpoint: ").strip()
+    api_endpoint = os.getenv("ATAI_API_ENDPOINT", "").strip() or input("Enter your API Endpoint (Press Enter for default): ").strip() or ArchetypeAI.get_default_endpoint()
     if not api_key:
         print("API key is required."); return
 
