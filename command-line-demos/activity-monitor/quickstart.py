@@ -24,12 +24,11 @@ def colorize_text(text: str, red: int = 164, green: int = 186, blue: int = 250) 
     return f"\033[38;2;{red};{green};{blue}m{text}\033[0m"
 
 # ---------- Setup ----------
-DEFAULT_LENS_ID = "lns-fd669361822b07e2-bc718aa3fdf0b3b7"
 DEFAULT_INSTRUCTION = "Answer the following question about the video in less than 15 words:"
 DEFAULT_MAX_RUN_SEC = 600.0
 DEFAULT_MAX_NEW_TOKENS = 256
-DEFAULT_STEP_SIZE = 60
-DEFAULT_WINDOW_SIZE = 60
+DEFAULT_STEP_SIZE = 30
+DEFAULT_TEMPORAL_FOCUS = 5
 
 # ---------- Interactive inputs ----------
 def get_user_inputs() -> dict:
@@ -61,8 +60,10 @@ def get_user_inputs() -> dict:
                 rtsp_url = u; break
             print("Please enter a valid rtsp:// or rtsps:// URL.")
 
-    focus = input("\nWhat would you like to know about the video? ").strip() or "Describe the video."
-    instruction = DEFAULT_INSTRUCTION
+    focus = input("\nEnter focus (what to look for): ").strip() or "Describe the video."
+
+    temporal_focus_input = input(f"Temporal focus (default: {DEFAULT_TEMPORAL_FOCUS}): ").strip()
+    temporal_focus = int(temporal_focus_input) if temporal_focus_input.isdigit() else DEFAULT_TEMPORAL_FOCUS
 
     return {
         "api_key": api_key,
@@ -70,85 +71,26 @@ def get_user_inputs() -> dict:
         "video_file_path": video_file_path,
         "rtsp_url": rtsp_url,
         "focus": focus,
-        "instruction": instruction,
+        "instruction": DEFAULT_INSTRUCTION,
         "max_run_time_sec": DEFAULT_MAX_RUN_SEC,
         "max_new_tokens": DEFAULT_MAX_NEW_TOKENS,
-        "lens_id": DEFAULT_LENS_ID,
-        "video_file_id": None,          # filled later if video
         "step_size": DEFAULT_STEP_SIZE,
-        "window_size": DEFAULT_WINDOW_SIZE,
+        "temporal_focus": temporal_focus,
         "api_endpoint": api_endpoint,
     }
 
-# ---------- Event builders ----------
-def build_input_event(args: dict) -> dict:
-    if args["input_type"] == "rtsp":
-        return {
-            "type": "input_stream.set",
-            "event_data": {
-                "stream_type": "rtsp_video_reader",
-                "stream_config": {
-                    "rtsp_url": args["rtsp_url"],
-                    "target_image_size": [360, 640],
-                    "target_frame_rate_hz": 1.0,
-                }
-            }
-        }
-    else:
-        return {
-            "type": "input_stream.set",
-            "event_data": {
-                "stream_type": "video_file_reader",
-                "stream_config": {
-                    "file_id": args["video_file_id"],
-                    "step_size": args["step_size"],
-                    "window_size": args["window_size"],
-                }
-            }
-        }
 
-def build_focus_event(args: dict) -> dict:
-    return {
-        "type": "session.modify",
-        "event_data": {
-            "focus": args["focus"],
-            "max_new_tokens": args["max_new_tokens"],
-            "instruction": args["instruction"]
-        }
-    }
+def session_callback(
+        session_id: str,
+        session_endpoint: str,
+        client: ArchetypeAI,
+        args: dict
+    ) -> None:
+    """Main function to run the logic of a custom lens session."""
 
-def build_output_event() -> dict:
-    return {
-        "type": "output_stream.set",
-        "event_data": {
-            "stream_type": "server_side_events_writer",
-            "stream_config": {},
-        }
-    }
-
-# ---------- Session ----------
-def session_fn(session_id: str, session_endpoint: str, client: ArchetypeAI, args: dict) -> None:
-    print(f"Session created: {session_id}")
-
-    # If using a video file, upload it now (after session start)
-    if args["input_type"] == "video" and args.get("video_file_path"):
-        print(f"Uploading video: {args['video_file_path']}")
-        try:
-            resp = client.files.local.upload(args["video_file_path"])
-            args["video_file_id"] = resp.get("file_id")
-            if not args["video_file_id"]:
-                print("Error: no file_id returned."); return
-        except Exception as e:
-            print(f"Error: Failed to upload video: {e}")
-            return
-
-    # Configure streams and focus
-    client.lens.sessions.process_event(session_id, build_input_event(args))
-    client.lens.sessions.process_event(session_id, build_focus_event(args))
-    client.lens.sessions.process_event(session_id, build_output_event())
-
-    # SSE reader
-    sse_reader = client.lens.sessions.create_sse_consumer(session_id, max_read_time_sec=args["max_run_time_sec"])
+    # Create a SSE reader to read the output of the lens.
+    sse_reader = client.lens.sessions.create_sse_consumer(
+        session_id, max_read_time_sec=args["max_run_time_sec"])
 
     print(f"\nMonitoring started — looking for: '{args['focus']}'")
     print("Press Ctrl+C to stop\n")
@@ -158,6 +100,8 @@ def session_fn(session_id: str, session_endpoint: str, client: ArchetypeAI, args
     signal.signal(signal.SIGINT, _sigint)
 
     try:
+        # Read events from the SSE stream until either the last message is
+        # received or the max read time has been reached.
         for event in sse_reader.read(block=True):
             if stop["flag"]:
                 break
@@ -168,6 +112,7 @@ def session_fn(session_id: str, session_endpoint: str, client: ArchetypeAI, args
                 if resp and isinstance(resp, list):
                     print(f"{ts}: {resp[0]}")
     finally:
+        # Close any active reader.
         sse_reader.close()
         print("Stopped.")
 
@@ -187,8 +132,43 @@ def main():
 
     input("\nPress Enter to start monitoring...")
 
-    # Start session;
-    client.lens.create_and_run_session(args["lens_id"], session_fn, auto_destroy=True, client=client, args=args)
+    # Upload the video file to the archetype platform if using video input.
+    if args["input_type"] == "video":
+        print(f"Uploading video: {args['video_file_path']}")
+        try:
+            file_response = client.files.local.upload(args["video_file_path"])
+            video_file_id = file_response["file_id"]
+        except Exception as e:
+            print(f"Error: Failed to upload video: {e}")
+            return
+
+        input_streams_config = f"""
+            - stream_type: video_file_reader
+              stream_config:
+                file_id: {video_file_id}
+                step_size: {args['step_size']}"""
+    else:
+        input_streams_config = f"""
+            - stream_type: rtsp_video_reader
+              stream_config:
+                rtsp_url: "{args['rtsp_url']}"
+                target_image_size: [360, 640]
+                target_frame_rate_hz: 1.0"""
+
+    # Create a custom lens and automatically launch the lens session.
+    client.lens.create_and_run_lens(f"""
+       lens_name: Custom Activity Monitor
+       lens_config:
+        model_parameters:
+            model_version: Newton::c2_3_7b_2508014e10af56
+            instruction: "{args['instruction']}"
+            focus: "{args['focus']}"
+            temporal_focus: {args['temporal_focus']}
+            max_new_tokens: {args['max_new_tokens']}
+        input_streams:{input_streams_config}
+        output_streams:
+            - stream_type: server_sent_events_writer
+    """, session_callback, client=client, args=args)
     print("Session finished.")
 
 if __name__ == "__main__":
