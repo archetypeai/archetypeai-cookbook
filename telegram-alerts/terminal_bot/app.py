@@ -26,8 +26,6 @@ BANNER = r"""
 print(BANNER)
 
 # ---------- Lens Config ----------
-LENS_ID = "lns-fd669361822b07e2-bc718aa3fdf0b3b7"
-
 DEFAULT_INSTRUCTION = (
     "STOP. FOLLOW THIS EXACT FORMAT: Step 1: Write <scan> I see in this video: "
     "then list ALL detected objects, vehicles, people, animals, buildings, and their "
@@ -39,6 +37,9 @@ DEFAULT_INSTRUCTION = (
     "Alert: short description of what was detected, max 15 words ONLY return one of the above. "
     "Do not describe anything else."
 )
+DEFAULT_STEP_SIZE = 30
+DEFAULT_TEMPORAL_FOCUS = 5
+DEFAULT_MAX_NEW_TOKENS = 256
 
 # ---------- Telegram Config ----------
 BOT_TOKEN = "YOUR_BOT_TOCKEN"
@@ -59,60 +60,13 @@ def send_telegram_alert(message: str) -> None:
 # ---------- State ----------
 last_alert_state = False  # toggles when we first see an “Alert: …” line
 
-# ---------- Session Handling ----------
-def session_fn(session_id, session_endpoint, client: ArchetypeAI, args: dict) -> None:
+def session_callback(session_id, session_endpoint, client: ArchetypeAI, args: dict) -> None:
+    """Main function to run the logic of a custom lens session."""
     global last_alert_state
 
-    # Input stream (RTSP or already-uploaded video file ID)
-    if args["input_type"] == "rtsp":
-        event = {
-            "type": "input_stream.set",
-            "event_data": {
-                "stream_type": "rtsp_video_reader",
-                "stream_config": {
-                    "rtsp_url": args["rtsp_url"],
-                    "target_image_size": [360, 640],
-                    "target_frame_rate_hz": 1.0,
-                }
-            }
-        }
-    else:
-        event = {
-            "type": "input_stream.set",
-            "event_data": {
-                "stream_type": "video_file_reader",
-                "stream_config": {
-                    "file_id": args["video_file_id"],
-                    "step_size": 60,
-                    "window_size": 1,
-                }
-            }
-        }
-    resp = client.lens.sessions.process_event(session_id, event)
-    logging.info(f"Stream response:\n{pformat(resp, indent=4)}")
-
-    # --- Focus & instruction
-    event = {
-        "type": "session.modify",
-        "event_data": {
-            "focus": args["focus"],
-            "max_new_tokens": 256,
-            "instruction": args["instruction"],
-        }
-    }
-    resp = client.lens.sessions.process_event(session_id, event)
-    logging.info(f"Instruction response:\n{pformat(resp, indent=4)}")
-
-    # Output stream
-    event = {
-        "type": "output_stream.set",
-        "event_data": {"stream_type": "server_side_events_writer", "stream_config": {}}
-    }
-    resp = client.lens.sessions.process_event(session_id, event)
-    logging.info(f"Output stream response:\n{pformat(resp, indent=4)}")
-
-    # --- SSE Reader
+    # Create a SSE reader to read the output of the lens.
     sse_reader = client.lens.sessions.create_sse_consumer(session_id, max_read_time_sec=args["max_run_time_sec"])
+
     for event in sse_reader.read(block=True):
         logging.info(event)
 
@@ -130,12 +84,14 @@ def session_fn(session_id, session_endpoint, client: ArchetypeAI, args: dict) ->
 
                 last_alert_state = is_alert
 
+    # Close any active reader.
     sse_reader.close()
 
 # ---------- Main ----------
 def main():
     print("=== Smart Monitor Setup ===")
     api_key = os.getenv("ATAI_API_KEY", "").strip() or input("Enter your API Key: ").strip()
+    api_endpoint = os.getenv("ATAI_API_ENDPOINT", "").strip() or input("Enter your API Endpoint (Press Enter for default): ").strip() or ArchetypeAI.get_default_endpoint()
     if not api_key:
         print("API key is required."); return
 
@@ -163,13 +119,48 @@ def main():
         "focus": focus,
         "instruction": DEFAULT_INSTRUCTION,
         "max_run_time_sec": 600.0,
+        "api_endpoint": api_endpoint,
+        "step_size": DEFAULT_STEP_SIZE,
+        "temporal_focus": DEFAULT_TEMPORAL_FOCUS,
+        "max_new_tokens": DEFAULT_MAX_NEW_TOKENS
     }
 
-    client = ArchetypeAI(api_key, api_endpoint=ArchetypeAI.get_default_endpoint())
+    client = ArchetypeAI(args["api_key"], api_endpoint=args["api_endpoint"])
     logging.info("▶️ Starting monitoring session…")
     send_telegram_alert("▶️ Smart monitoring started…")
 
-    client.lens.create_and_run_session(LENS_ID, session_fn, auto_destroy=True, client=client, args=args)
+    # Handle file upload if using video input
+    if input_type == "video":
+        # Note: video_file_id is expected to be already uploaded file ID
+        # If it's a file path, this would need to be modified
+        file_id = video_file_id
+        input_streams_config = f"""
+            - stream_type: video_file_reader
+              stream_config:
+                file_id: {file_id}
+                step_size: {args['step_size']}"""
+    else:
+        input_streams_config = f"""
+            - stream_type: rtsp_video_reader
+              stream_config:
+                rtsp_url: "{args['rtsp_url']}"
+                target_image_size: [360, 640]
+                target_frame_rate_hz: 1.0"""
+
+    # Create a custom lens and automatically launch the lens session.
+    client.lens.create_and_run_lens(f"""
+       lens_name: Custom Telegram Activity Monitor
+       lens_config:
+        model_parameters:
+            model_version: Newton::c2_3_7b_2508014e10af56
+            instruction: "{args['instruction']}"
+            focus: "{args['focus']}"
+            temporal_focus: {args['temporal_focus']}
+            max_new_tokens: {args['max_new_tokens']}
+        input_streams:{input_streams_config}
+        output_streams:
+            - stream_type: server_sent_events_writer
+    """, session_callback, client=client, args=args)
 
 if __name__ == "__main__":
     main()
