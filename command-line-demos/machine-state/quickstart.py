@@ -171,7 +171,7 @@ def main():
 
     print("\n--- Configuration Summary ---")
     print(f"Lens ID:      {args['lens_id']}")
-    print(f"API Endpoint: {args["api_endpoint"]}")
+    print(f"API Endpoint: {args['api_endpoint']}")
     print(f"Data file:    {args['data_file_path']}")
     print(f"Classes:      {len(args['focus_files'])}")
     for cls, p in args["focus_files"].items():
