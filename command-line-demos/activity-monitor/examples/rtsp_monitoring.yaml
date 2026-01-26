@@ -1,0 +1,14 @@
+api:
+  key: "your-api-key"
+
+input:
+  type: "rtsp"
+  source: "rtsp://192.168.1.100:554/stream"
+
+monitor:
+  focus: "Detect when a person enters the frame"
+  step_size: 30
+
+output:
+  format: "json"
+  log_file: "security_monitor.log"

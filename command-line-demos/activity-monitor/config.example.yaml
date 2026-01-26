@@ -1,0 +1,28 @@
+# Activity Monitor Configuration
+# Copy this file to config.yaml and fill in your values
+
+api:
+  key: "your-archetype-api-key-here"
+
+input:
+  # Type: 'video' for local files, 'rtsp' for camera streams
+  type: "video"
+  
+  # Source: path to video file or RTSP stream URL
+  source: "./sample-videos/example.mp4"
+
+monitor:
+  # Focus: Your question about the video content
+  focus: "Is there a person in the frame?"
+  
+  # Step size: frames between analysis (optional, default: 60)
+  # - Lower values (30): More detail, slower processing
+  # - Higher values (90-120): Faster, captures broader patterns
+  step_size: 60
+
+output:
+  # Format: 'text' for human-readable, 'json' for structured data
+  format: "text"
+  
+  # Log file: optional path to save results
+  log_file: null

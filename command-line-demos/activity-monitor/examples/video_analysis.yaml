@@ -1,0 +1,13 @@
+api:
+  key: "your-api-key"
+
+input:
+  type: "video"
+  source: "./sample-videos/parking_lot.mp4"
+
+monitor:
+  focus: "Are there any vehicles parked illegally?"
+  step_size: 60
+
+output:
+  format: "text"

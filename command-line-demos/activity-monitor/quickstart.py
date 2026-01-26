@@ -1,12 +1,16 @@
 """
 Activity Monitor Quickstart
-Interactive activity monitoring using Newton's Activity Monitor Lens for video or RTSP analysis
+Activity monitoring using Newton's Activity Monitor Lens for video or RTSP analysis
+Supports both YAML configuration files and interactive CLI mode
 """
 
+import argparse
 import logging
 import os
 import signal
 import sys
+from pathlib import Path
+import yaml
 from archetypeai.api_client import ArchetypeAI
 
 logging.basicConfig(level=logging.ERROR, format="%(asctime)s [%(levelname)s] %(message)s")
@@ -20,6 +24,7 @@ BANNER = r"""
 ██║ ╚████║███████╗╚███╔███╔╝   ██║   ╚██████╔╝██║ ╚████║    ██║  ██║██╗
 ╚═╝  ╚═══╝╚══════╝ ╚══╝╚══╝    ╚═╝    ╚═════╝ ╚═╝  ╚═══╝    ╚═╝  ╚═╝╚═╝
 """
+
 def colorize_text(text: str, red: int = 164, green: int = 186, blue: int = 250) -> str:
     return f"\033[38;2;{red};{green};{blue}m{text}\033[0m"
 
@@ -30,10 +35,106 @@ DEFAULT_MAX_NEW_TOKENS = 256
 DEFAULT_STEP_SIZE = 30
 DEFAULT_TEMPORAL_FOCUS = 5
 
-# ---------- Interactive inputs ----------
+# ---------- YAML Configuration ----------
+def load_config(config_path: str) -> dict:
+    """Load and validate YAML configuration file."""
+    try:
+        config_file = Path(config_path)
+        if not config_file.exists():
+            print(f"❌ Configuration file not found: {config_path}")
+            print(f"💡 Copy config.example.yaml to config.yaml and update with your values")
+            sys.exit(1)
+        
+        with open(config_file, 'r') as f:
+            config = yaml.safe_load(f)
+        
+        # Validate required fields
+        required_fields = [
+            ('api', 'key'),
+            ('input', 'type'),
+            ('input', 'source'),
+            ('monitor', 'focus')
+        ]
+        
+        for section, field in required_fields:
+            if section not in config or field not in config[section]:
+                print(f"❌ Missing required field: {section}.{field}")
+                sys.exit(1)
+        
+        # Validate input type
+        if config['input']['type'] not in ('video', 'rtsp'):
+            print(f"❌ Invalid input.type: {config['input']['type']}. Must be 'video' or 'rtsp'")
+            sys.exit(1)
+        
+        # Set defaults
+        if 'step_size' not in config.get('monitor', {}):
+            config['monitor']['step_size'] = DEFAULT_STEP_SIZE
+        
+        if 'temporal_focus' not in config.get('monitor', {}):
+            config['monitor']['temporal_focus'] = DEFAULT_TEMPORAL_FOCUS
+        
+        if 'output' not in config:
+            config['output'] = {'format': 'text', 'log_file': None}
+        
+        return config
+        
+    except yaml.YAMLError as e:
+        print(f"❌ Error parsing YAML configuration: {e}")
+        sys.exit(1)
+    except Exception as e:
+        print(f"❌ Error loading configuration: {e}")
+        sys.exit(1)
+
+
+def print_config_summary(config: dict):
+    """Print a summary of the loaded configuration."""
+    print("\n--- Configuration Summary ---")
+    print(f"Input:  {config['input']['type'].upper()}")
+    
+    if config['input']['type'] == 'video':
+        print(f"Video:  {config['input']['source']}")
+    else:
+        print(f"RTSP:   {config['input']['source']}")
+    
+    print(f"Focus:  {config['monitor']['focus']}")
+    print(f"Step size: {config['monitor']['step_size']} frames")
+    
+    if config['output'].get('log_file'):
+        print(f"Logging to: {config['output']['log_file']}")
+    
+    print("----------------------------\n")
+
+
+def config_to_args(config: dict) -> dict:
+    """Convert YAML config to args format expected by session_callback."""
+    input_type = config['input']['type']
+    
+    args = {
+        "api_key": config['api']['key'],
+        "input_type": input_type,
+        "video_file_path": config['input']['source'] if input_type == 'video' else None,
+        "rtsp_url": config['input']['source'] if input_type == 'rtsp' else None,
+        "focus": config['monitor']['focus'],
+        "instruction": DEFAULT_INSTRUCTION,
+        "max_run_time_sec": DEFAULT_MAX_RUN_SEC,
+        "max_new_tokens": DEFAULT_MAX_NEW_TOKENS,
+        "step_size": config['monitor']['step_size'],
+        "temporal_focus": config['monitor']['temporal_focus'],
+        "api_endpoint": config['api'].get('endpoint', ArchetypeAI.get_default_endpoint()),
+    }
+    
+    # Validate video file exists if using video input
+    if input_type == 'video' and not os.path.exists(args['video_file_path']):
+        print(f"❌ Video file not found: {args['video_file_path']}")
+        sys.exit(1)
+    
+    return args
+
+
+# ---------- Interactive inputs (Legacy) ----------
 def get_user_inputs() -> dict:
     print(colorize_text(BANNER))
-    print("\n=== Activity Monitor ===\n")
+    print("\n=== Activity Monitor (Interactive Mode) ===\n")
 
     api_key = os.getenv("ATAI_API_KEY", "").strip() or input("Enter your ArchetypeAI API key: ").strip()
     api_endpoint = os.getenv("ATAI_API_ENDPOINT", "").strip() or input("Enter your API Endpoint (Press Enter for default): ").strip() or ArchetypeAI.get_default_endpoint()
@@ -99,30 +200,70 @@ def session_callback(
     def _sigint(_s, _f): stop["flag"] = True
     signal.signal(signal.SIGINT, _sigint)
 
-    try:
-        # Read events from the SSE stream until either the last message is
-        # received or the max read time has been reached.
-        for event in sse_reader.read(block=True):
-            if stop["flag"]:
-                break
-            if isinstance(event, dict) and event.get("type") == "inference.result":
-                ed = event.get("event_data", {})
-                resp = ed.get("response") or []
-                ts = ed.get("query_metadata", {}).get("sensor_timestamp", "N/A")
-                if resp and isinstance(resp, list):
-                    print(f"{ts}: {resp[0]}")
-    finally:
-        # Close any active reader.
-        sse_reader.close()
-        print("Stopped.")
+    for event in sse_reader:
+        if stop["flag"]:
+            print("\nStopping...")
+            break
 
-# ---------- Main ----------
+        event_data = event.data
+        if "error" in event_data:
+            print(f"Error: {event_data['error']}")
+            continue
+
+        text = event_data.get("text", "")
+        if text:
+            print(f"Response: {text}")
+
+
 def main():
-    args = get_user_inputs()
-    client = ArchetypeAI(args["api_key"], api_endpoint=args["api_endpoint"])
+    """Main entry point for Activity Monitor."""
+    parser = argparse.ArgumentParser(
+        description='Activity Monitor - Analyze video content with natural language queries',
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  # Use default config file
+  python quickstart.py
+  
+  # Use custom config file
+  python quickstart.py --config my_config.yaml
+  
+  # Run in interactive mode (legacy)
+  python quickstart.py --interactive
+        """
+    )
+    
+    parser.add_argument(
+        '--config',
+        default='config.yaml',
+        help='Path to YAML configuration file (default: config.yaml)'
+    )
+    
+    parser.add_argument(
+        '--interactive',
+        action='store_true',
+        help='Run in interactive CLI mode (legacy)'
+    )
+    
+    args_parsed = parser.parse_args()
+    
+    print(colorize_text(BANNER))
+    print("\n=== Activity Monitor ===\n")
+    
+    if args_parsed.interactive:
+        # Legacy interactive mode
+        args = get_user_inputs()
+    else:
+        # YAML configuration mode
+        config = load_config(args_parsed.config)
+        print(f"✓ Configuration loaded from: {args_parsed.config}")
+        print_config_summary(config)
+        args = config_to_args(config)
+    
+    # Initialize client
+    client = ArchetypeAI(api_key=args["api_key"], endpoint=args["api_endpoint"])
 
-    print("\n--- Configuration Summary ---")
-    print(f"API Endpoint: {args['api_endpoint']} ")
+    # Print summary
     print(f"Input:  {args['input_type'].upper()}")
     if args['input_type'] == 'rtsp':
         print(f"RTSP:   {args['rtsp_url']}")
