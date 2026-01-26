@@ -200,19 +200,20 @@ def session_callback(
     def _sigint(_s, _f): stop["flag"] = True
     signal.signal(signal.SIGINT, _sigint)
 
-    for event in sse_reader:
-        if stop["flag"]:
-            print("\nStopping...")
-            break
-
-        event_data = event.data
-        if "error" in event_data:
-            print(f"Error: {event_data['error']}")
-            continue
-
-        text = event_data.get("text", "")
-        if text:
-            print(f"Response: {text}")
+    try:
+        for event in sse_reader.read(block=True):
+            if stop["flag"]:
+                break
+            
+            if isinstance(event, dict) and event.get("type") == "inference.result":
+                ed = event.get("event_data", {})
+                resp = ed.get("response") or []
+                ts = ed.get("query_metadata", {}).get("sensor_timestamp", "N/A")
+                if resp and isinstance(resp, list):
+                    print(f"{ts}: {resp[0]}")
+    finally:
+        # Close any active reader
+        sse_reader.close()
 
 
 def main():

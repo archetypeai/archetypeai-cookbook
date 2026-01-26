@@ -9,7 +9,7 @@ input:
   type: "video"
   
   # Source: path to video file or RTSP stream URL
-  source: "./sample-videos/example.mp4"
+  source: "./sample-videos/delivery.mp4"
 
 monitor:
   # Focus: Your question about the video content
