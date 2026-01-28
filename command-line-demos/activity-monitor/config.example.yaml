@@ -9,6 +9,8 @@ input:
   type: "video"
   
   # Source: path to video file or RTSP stream URL
+  # For video: use a path like "./sample-videos/delivery.mp4"
+  # For rtsp: use a URL like "rtsp://YOUR_CAMERA_IP:554/stream"
   source: "./sample-videos/delivery.mp4"
 
 monitor:
