@@ -1,0 +1,13 @@
+api:
+  key: "your-api-key"
+
+input:
+  type: "video"
+  source: "./sample-videos/street.mp4"
+
+monitor:
+  focus: "Are there any vehicles in the street?"
+  step_size: 60
+
+output:
+  format: "text"

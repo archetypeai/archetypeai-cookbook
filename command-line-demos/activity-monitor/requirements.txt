@@ -1,0 +1,5 @@
+# Archetype AI Python Client
+archetypeai
+
+# YAML configuration support
+pyyaml>=6.0

@@ -1,0 +1,15 @@
+# User configurations
+config.yaml
+
+# API keys
+*.env
+.env*
+
+# Logs
+*.log
+monitor_results.log
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
